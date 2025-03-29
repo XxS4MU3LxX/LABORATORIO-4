@@ -6,100 +6,271 @@
 
 ***Samuel Esteban Fonseca Luna - 5600808***
 
-```
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.signal.windows import hann, hamming
-from scipy.fftpack import fft
-import re
-import time
-```
 
-# Ruta del archivo
-```
-file_path = r"D:\Descargas\datos lab4.txt"  # ¡Cambia esta ruta!
+# Importación de librerías
 
-with open(file_path, "r") as file:
-    raw_data = file.read()
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from scipy.signal.windows import hann, hamming
+    from scipy.fftpack import fft
+    from scipy.ndimage import gaussian_filter1d
+    from scipy.stats import median_abs_deviation
+    from scipy.signal import welch
+    import re
+    import time
 
-data_values = np.array([float(x) for x in re.findall(r"-?\d+\.\d+", raw_data)])
+`numpy:`  cálculos numéricos eficientes con vectores/matrices.
 
-```
-# Configuración de parámetros
+`matplotlib.pyplot:` graficación de datos.
 
-```
-fs = 10000  
-window_size = 256  
-overlap = window_size // 2  
-ventana = "hanning"  
-tiempo_espera = 0.5 
+`hann, hamming:` ventanas para suavizar bordes antes de aplicar la FFT.
 
-def calcular_frecuencia_media_mediana(frequencies, spectrum):
+`fft:` algoritmo rápido para calcular transformada de Fourier.
 
-```
-    Calcula la frecuencia media y mediana de un espectro de frecuencias.
-  ```
-  
-    spectrum_energy = np.abs(spectrum)
-    
-    freq_media = np.sum(frequencies * spectrum_energy) / np.sum(spectrum_energy)
-    
-    energy_cumsum = np.cumsum(spectrum_energy)
-    freq_mediana = np.interp(energy_cumsum[-1] / 2, energy_cumsum, frequencies)
+`gaussian_filter1d:` suavizado tipo campana (Gauss).
 
-    return freq_media, freq_mediana
+`median_abs_deviation:` medida estadística robusta contra ruido.
 
-def procesar_senal_emg(data, fs=10000, window_size=256, ventana="hanning"):
+`welch:` estima densidad espectral de potencia (PSD).
 
-```
-    Aplica ventana y calcula FFT en un segmento de la señal EMG.
+`re:` extrae números de texto con expresiones regulares.
 
-    Retorna:
-    - fft_resultado: Magnitud del espectro de frecuencias.
-    - frecuencias: Array con las frecuencias correspondientes.
-    
- ```
-   if ventana == "hanning":
-        window_func = hann(window_size)
-    elif ventana == "hamming":
-        window_func = hamming(window_size)
-    else:
-        raise ValueError("Solo se permiten 'hanning' o 'hamming' como ventana")
+`time:` para pausar la ejecución (simulación en tiempo real).
+
+# Carga del archivo y extracción de la señal
+
+    file_path = r"D:\Descargas\datos lab4.txt" 
+
+    with open(file_path, "r") as file:
+      raw_data = file.read()
+
+    data_values = np.array([float(x) for x in re.findall(r"-?\d+\.\d+", raw_data)])
+
+Se abre el archivo de texto y se lee como cadena.
+
+Se extraen todos los números flotantes con regex.
+
+Se convierte la lista de strings en un array de floats para análisis.
+
+Resultado: `data_values` es tu señal EMG, una secuencia de voltajes registrados en el tiempo.
+
+# Convolución para suavizar la señal
+
+    def convolucionar_senal(data, kernel_size=5):
+       kernel = np.ones(kernel_size) / kernel_size
+       return np.convolve(data, kernel, mode="same")
+
+Es un filtro promedio móvil. Crea un "kernel" (ventana) de tamaño 5 y lo desliza sobre la señal.
+
+Reduce fluctuaciones rápidas (ruido).
+
+Conserva la forma general de la señal.
+
+
+    data_convolucionada = convolucionar_senal(data_values, kernel_size=5)
+
+Se aplica ese suavizado a la señal EMG original.
+
+# Visualización de señal original vs convolucionada
+
+    plt.figure(figsize=(10, 4))
+    plt.plot(data_values, label="Señal Original", alpha=0.7)
+    plt.plot(data_convolucionada, label="Señal Convolucionada", linestyle="dashed", linewidth=1.5)
+    plt.xlabel("Tiempo (muestras)")
+    plt.ylabel("Amplitud")
+    plt.title("Señal Completa - Antes del Procesamiento por Ventanas")
+    plt.legend()
+    plt.show()
+
+Muestra ambas señales para comparar:
+
+La original con mucho ruido.
+
+La convolucionada más suave.
+
+    total_muestras = len(data_values)
+    tercio = total_muestras // 3
+
+# Dividir señal en 3 segmentos
+
+    inicio = data_values[:tercio]
+    mitad = data_values[tercio:2*tercio]
+    final = data_values[2*tercio:]
+
+Permite comparar visualmente:
+
+¿Cómo luce la señal al principio?
+
+¿Cambia a la mitad o al final?
+
+¿Se nota fatiga? ¿Aparecen oscilaciones distintas?
+
+Esto refuerza la hipótesis de que la fatiga cambia el patrón de la señal EMG a lo largo del tiempo.
+
+    plt.figure(figsize=(12, 4))
+
+    plt.subplot(1, 3, 1)
+    plt.plot(inicio, color="b")
+    plt.title("Inicio de la Señal")
+    plt.xlabel("Tiempo (muestras)")
+    plt.ylabel("Amplitud")
+
+    plt.subplot(1, 3, 2)
+    plt.plot(mitad, color="g")
+    plt.title("Mitad de la Señal")
+    plt.xlabel("Tiempo (muestras)")
+
+    plt.subplot(1, 3, 3)
+    plt.plot(final, color="r")
+    plt.title("Final de la Señal")
+    plt.xlabel("Tiempo (muestras)")
+
+    plt.tight_layout()
+    plt.show()
+
+![Imagen de WhatsApp 2025-03-28 a las 19 01 59_3cea404a](https://github.com/user-attachments/assets/0240134c-89ad-4639-8fe8-33f23bd13216)
+
+# Suavizado adicional: filtro Gaussiano
+
+    sigma = 20  
+    señal_suavizada_gauss = gaussian_filter1d(data_values, sigma=sigma)
+
+El suavizado gaussiano aplica una campana alrededor de cada punto:
+
+Más suave que la convolución promedio.
+
+Suprime aún más el ruido sin perder componentes importantes.
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(data_values, label="Señal Original", alpha=0.5, color="gray")
+    plt.plot(data_convolucionada, label="Convolución", alpha=0.7, color="b")
+    plt.plot(señal_suavizada_gauss, label="Suavizado Gaussiano", color="r", linewidth=2)
+    plt.xlabel("Tiempo (muestras)")
+    plt.ylabel("Amplitud")
+    plt.title("Señal Suavizada con Filtro Gaussiano")
+    plt.legend()
+    plt.show()
+
+# Parámetros de la FFT y PSD
+
+    fs = 10000            # Frecuencia de muestreo (Hz)
+    window_size = 256     # Tamaño de ventana para FFT
+    overlap = 128         # 50% de solapamiento
+    ventana = "hanning"   # Ventana usada
+    tiempo_espera = 6     # Tiempo entre iteraciones (simula tiempo real)
+
+Estos valores controlan cómo se analiza la señal:
+
+Cuánto dura cada ventana.
+
+Cuánto se superponen (mayor solapamiento = más suavidad temporal).
+
+Qué función ventana se aplica para reducir artefactos en la FFT.
+
+# Funciones para análisis espectral
+
+    def calcular_frecuencia_media_mediana(frequencies, spectrum):
+       spectrum_energy = np.abs(spectrum)
+       freq_media = np.sum(frequencies * spectrum_energy) / np.sum(spectrum_energy)
+       energy_cumsum = np.cumsum(spectrum_energy)
+       freq_mediana = np.interp(energy_cumsum[-1] / 2, energy_cumsum, frequencies)
+      return freq_media, freq_mediana
+
+`freq_media:` promedio ponderado por energía.
+
+`freq_mediana:` frecuencia donde se acumula el 50% de la energía.
+
+Fatiga muscular se detecta cuando la frecuencia mediana disminuye.
+
+# FFT y PSD en una función
+
+     def procesar_senal_emg(data, fs=10000, window_size=256, ventana="hanning"):
+        if ventana == "hanning":
+          window_func = hann(window_size)
+        elif ventana == "hamming":
+          window_func = hamming(window_size)
+        else:
+              raise ValueError("Solo se permiten 'hanning' o 'hamming' como ventana")
 
     frecuencias = np.fft.fftfreq(window_size, d=1/fs)[:window_size//2]
     fft_resultado = np.abs(fft(data * window_func))[:window_size//2]
+    
+    freqs_psd, psd = welch(data, fs, window=window_func, nperseg=window_size)
 
-    return fft_resultado, frecuencias
+    return fft_resultado, frecuencias, freqs_psd, psd
 
-plt.ion()
-fig, ax = plt.subplots()
-frequencies = np.fft.fftfreq(window_size, d=1/fs)[:window_size//2]
-line, = ax.plot(frequencies, np.zeros_like(frequencies))
-ax.set_ylim(0, 10)
-ax.set_xlim(0, fs/2)
-ax.set_xlabel("Frecuencia (Hz)")
-ax.set_ylabel("Magnitud")
-ax.set_title("Espectro de la señal EMG en Tiempo Real")
+    plt.ion()
 
-print("Procesando datos del archivo...")
+Esta función hace dos cosas:
 
-num_windows = (len(data_values) - window_size) // overlap
+Aplica Transformada de Fourier (FFT): vista puntual de energía por frecuencia.
 
-fft_promedio = np.zeros(len(frequencies))  
+Aplica Welch: estimación más estable de Densidad Espectral de Potencia (PSD).
 
-freqs_medias = []
-freqs_medianas = []
+# Gráfica interactiva en tiempo real
 
-for i in range(num_windows):
-    start = i * overlap  
-    segment = data_values[start:start + window_size]
+     fig, (ax_fft, ax_psd) = plt.subplots(2, 1, figsize=(8, 6))
+
+`ax_fft:` gráfico para la FFT.
+
+`ax_psd:` gráfico para la PSD en escala logarítmica (mejor para ver energía en frecuencias bajas).
+
+Estas gráficas se actualizan en cada ventana del análisis.
+
+     frequencies = np.fft.fftfreq(window_size, d=1/fs)[:window_size//2]
+     line_fft, = ax_fft.plot(frequencies, np.zeros_like(frequencies), label="FFT")
+     line_psd, = ax_psd.plot(frequencies, np.zeros_like(frequencies), label="PSD", color="r")
+
+     ax_fft.set_ylim(0, 10)
+     ax_fft.set_xlim(0, fs/2)
+     ax_fft.set_xlabel("Frecuencia (Hz)")
+     ax_fft.set_ylabel("Magnitud")
+     ax_fft.set_title("Espectro de Frecuencia en Tiempo Real")
+     ax_fft.legend()
+
+     ax_psd.set_ylim(1e-8, 1e-2)  # Ajuste para mejor visualización
+     ax_psd.set_xlim(0, fs/2)
+     ax_psd.set_yscale("log")  # Escala logarítmica para la PSD
+     ax_psd.set_xlabel("Frecuencia (Hz)")
+     ax_psd.set_ylabel("Densidad Espectral de Potencia (V²/Hz)")
+     ax_psd.set_title("Densidad Espectral de Potencia en Tiempo Real")
+     ax_psd.legend()
+
+     print("Procesando datos del archivo...")
+
+     num_windows = (len(data_values) - window_size) // overlap
+
+    fft_promedio = np.zeros(len(frequencies))  
+    psd_promedio = np.zeros_like(frequencies)  
+
+    freqs_medias = []
+    freqs_medianas = []
+
+![Imagen de WhatsApp 2025-03-23 a las 10 45 43_82c3e6fd](https://github.com/user-attachments/assets/1d937d3c-23b5-4591-90c4-894b32c0cbc4)
+![Imagen de WhatsApp 2025-03-23 a las 10 45 44_c1c3a85a](https://github.com/user-attachments/assets/9fc57f7f-b7f1-412e-b376-0781971eca8f)
+![Imagen de WhatsApp 2025-03-23 a las 10 45 44_c98c620f](https://github.com/user-attachments/assets/4a8736f7-45ab-4e62-9c5d-3cdae8775b04)
+![Imagen de WhatsApp 2025-03-23 a las 10 45 44_46aabb8e](https://github.com/user-attachments/assets/377b4d2e-9fd8-47f9-9418-e9a840fd3079)
+![Imagen de WhatsApp 2025-03-23 a las 10 45 44_3937efa9](https://github.com/user-attachments/assets/76ca7a59-0d07-4e9c-8df7-3e6f570c5a9e)
+![Imagen de WhatsApp 2025-03-23 a las 10 45 45_051dbfd9](https://github.com/user-attachments/assets/ffbeb6be-b112-403e-bd08-1f7e8c9e6a94)
+![Imagen de WhatsApp 2025-03-23 a las 10 45 45_9a5558ab](https://github.com/user-attachments/assets/e79feca1-bda0-4f61-948a-917382373d53)
+![Imagen de WhatsApp 2025-03-23 a las 10 45 45_5372a8bc](https://github.com/user-attachments/assets/feec86b4-aaa9-47e4-8f6e-8eab81c4281f)
+![Imagen de WhatsApp 2025-03-23 a las 10 45 45_e11c3d9e](https://github.com/user-attachments/assets/b02a9c2b-e1bb-4c97-bfa3-8d4fbdb574ba)
+![Imagen de WhatsApp 2025-03-23 a las 10 45 45_54b4b5ea](https://github.com/user-attachments/assets/68bdbfaa-6ca0-4e04-aa79-ea4e59c4f569)
+![Imagen de WhatsApp 2025-03-23 a las 10 45 46_2ffd11be](https://github.com/user-attachments/assets/f2362077-f0dc-44c6-b925-8eb08df86e9f)
+
+# Análisis por ventanas deslizantes
+
+     for i in range(num_windows):
+        start = i * overlap  
+         segment = data_values[start:start + window_size]
     
     if len(segment) < window_size:
         break  
 
-    fft_result, freqs = procesar_senal_emg(segment, fs, window_size, ventana=ventana)
+    fft_result, freqs, freqs_psd, psd = procesar_senal_emg(segment, fs, window_size, ventana=ventana)
 
     fft_promedio += fft_result
+    psd_promedio += psd[:len(frequencies)]  # Aseguramos el tamaño correcto
 
     freq_media, freq_mediana = calcular_frecuencia_media_mediana(freqs, fft_result)
     freqs_medias.append(freq_media)
@@ -107,34 +278,74 @@ for i in range(num_windows):
 
     print(f"Ventana {i+1}/{num_windows}: Freq Media = {freq_media:.2f} Hz, Freq Mediana = {freq_mediana:.2f} Hz")
 
-    line.set_ydata(fft_result)
-    ax.relim()
-    ax.autoscale_view()
+    line_fft.set_ydata(fft_result)
+    line_psd.set_ydata(psd[:len(frequencies)])
+
+    ax_fft.relim()
+    ax_fft.autoscale_view()
+    ax_psd.relim()
+    ax_psd.autoscale_view()
+
     fig.canvas.draw()
     fig.canvas.flush_events()
 
     time.sleep(tiempo_espera)  
 
-fft_promedio /= num_windows  # Promedio de todas las ventanas
+En cada iteración:
 
-plt.figure(figsize=(8, 4))
-plt.plot(frequencies, fft_promedio)
-plt.xlabel("Frecuencia (Hz)")
-plt.ylabel("Magnitud")
-plt.title("Espectro Promedio de la Señal EMG")
-plt.show()
+Toma un segmento de la señal con solapamiento.
 
-plt.figure(figsize=(8, 4))
-plt.plot(freqs_medias, label="Frecuencia Media")
-plt.plot(freqs_medianas, label="Frecuencia Mediana")
-plt.xlabel("Ventanas de tiempo")
-plt.ylabel("Frecuencia (Hz)")
-plt.title("Evolución de la Frecuencia Media y Mediana en el Tiempo")
-plt.legend()
-plt.show()
+Calcula FFT y PSD.
 
-print("Procesamiento del archivo finalizado.")
+Suma cada resultado (para promedio final).
 
-plt.ioff()
-plt.show(block=True)
-```
+Calcula frecuencia media y mediana.
+
+Actualiza las gráficas.
+
+Imprime los valores de frecuencia.
+
+Espera 6 segundos (simulación tiempo real).
+
+Este bucle es clave para observar cómo evoluciona el espectro con el tiempo.
+
+ # Promedios y gráficas finales
+ 
+     fft_promedio /= num_windows
+     psd_promedio /= num_windows
+
+Se grafica:
+
+Espectro FFT promedio de toda la señal.
+
+PSD promedio (más suave, ideal para observación detallada).
+
+Evolución temporal de la frecuencia media y mediana, lo más importante para detectar fatiga.
+
+     plt.figure(figsize=(8, 4))
+     plt.plot(frequencies, fft_promedio)
+     plt.xlabel("Frecuencia (Hz)")
+     plt.ylabel("Magnitud")
+     plt.title("Espectro Promedio de la Señal EMG")
+     plt.show()
+
+     plt.figure(figsize=(8, 4))
+     plt.semilogy(frequencies, psd_promedio, color='r')
+     plt.xlabel("Frecuencia (Hz)")
+     plt.ylabel("Densidad Espectral de Potencia (V²/Hz)")
+     plt.title("Densidad Espectral de Potencia Promedio")
+     plt.show()
+
+     plt.figure(figsize=(8, 4))
+     plt.plot(freqs_medias, label="Frecuencia Media")
+     plt.plot(freqs_medianas, label="Frecuencia Mediana")
+     plt.xlabel("Ventanas de tiempo")
+     plt.ylabel("Frecuencia (Hz)")
+     plt.title("Evolución de la Frecuencia Media y Mediana en el Tiempo")
+     plt.legend()
+     plt.show()
+
+     print("Procesamiento del archivo finalizado.")
+
+     plt.ioff()
+     plt.show(block=True)
