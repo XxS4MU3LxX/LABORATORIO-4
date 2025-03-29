@@ -6,9 +6,11 @@
 
 ***Samuel Esteban Fonseca Luna - 5600808***
 
-Este laboratorio tiene como propósito procesar señales electromiográficas (EMG) previamente adquiridas. Realiza un análisis espectral en tiempo real, utilizando ventanas móviles sobre la señal, para estudiar cómo varía la energía en el dominio de la frecuencia, especialmente enfocado en la detección de fatiga muscular.
+Este laboratorio tiene como propósito procesar señales electromiográficas (EMG) previamente adquiridas en el brazo de un sujeto de prueba llamado Mrtin Alexander Torres Carvajas donde se pusieron los electrodos en la zona del músculo, generalmente sobre el área donde se encuentra la contracción del bíceps y uno en el area del hueso como elecrrodo de referencia. Realiza un análisis espectral en tiempo real, utilizando ventanas móviles sobre la señal, para estudiar cómo varía la energía en el dominio de la frecuencia, especialmente enfocado en la detección de fatiga muscular.
 
 La fatiga se manifiesta típicamente por una disminución en la frecuencia mediana del espectro EMG con el tiempo.
+
+![image](https://github.com/user-attachments/assets/5c6bf4db-7f4e-4ded-a4e9-fe9352ed42de)
 
 # Importación de librerías
 
