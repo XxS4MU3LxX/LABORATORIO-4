@@ -6,6 +6,9 @@
 
 ***Samuel Esteban Fonseca Luna - 5600808***
 
+Este laboratorio tiene como propósito procesar señales electromiográficas (EMG) previamente adquiridas. Realiza un análisis espectral en tiempo real, utilizando ventanas móviles sobre la señal, para estudiar cómo varía la energía en el dominio de la frecuencia, especialmente enfocado en la detección de fatiga muscular.
+
+La fatiga se manifiesta típicamente por una disminución en la frecuencia mediana del espectro EMG con el tiempo.
 
 # Importación de librerías
 
@@ -150,6 +153,7 @@ Suprime aún más el ruido sin perder componentes importantes.
     plt.title("Señal Suavizada con Filtro Gaussiano")
     plt.legend()
     plt.show()
+![Imagen de WhatsApp 2025-03-27 a las 22 38 25_ce88e509](https://github.com/user-attachments/assets/c46be012-ee00-4c1f-8eca-ad815a90db67)
 
 # Parámetros de la FFT y PSD
 
@@ -349,3 +353,61 @@ Evolución temporal de la frecuencia media y mediana, lo más importante para de
 
      plt.ioff()
      plt.show(block=True)
+
+![image](https://github.com/user-attachments/assets/945e8db0-3479-4784-bf7e-97e25c26f9e0)
+
+# Cargar los datos
+     alpha = 0.05
+     data = np.loadtxt('datos lab4.txt')
+
+Usa `np.loadtxt()` para cargar el archivo `datos lab4.txt`, que debería contener los datos EMG que estamos analizando.
+
+`data` es un array `numpy` que contiene todos los valores de la señal.
+
+# Asignar el primer esfuerzo a los primeros 256 datos
+     primer_esfuerzo = data[:256]  # Primeros 256 datos
+
+`primer_esfuerzo` es un segmento de la señal que contiene los primeros 256 datos de `data`, lo que representa el primer esfuerzo muscular durante la contracción (probablemente cuando el músculo está descansando al principio de la medición).
+
+# Asignar el último esfuerzo a los antepenúltimos 256 datos
+     ultimo_esfuerzo = data[-512:-256]  # Últimos 256 datos (antepenúltimos)
+
+`ultimo_esfuerzo` selecciona los últimos 256 datos, pero empieza en la posición antepenúltima (es decir, va desde el índice -512 hasta el -256). Esto corresponde a la parte final de la señal, posiblemente cuando el músculo está fatigado.
+
+# Realizar la prueba t de Student con la hipótesis correcta (primer esfuerzo > último esfuerzo)
+     result = stats.ttest_ind(primer_esfuerzo, ultimo_esfuerzo, alternative='greater')
+
+La prueba t de Student se utiliza para determinar si hay una diferencia significativa entre las medias de dos grupos independientes. En este caso:
+
+`primer_esfuerzo:` datos del primer esfuerzo.
+
+`ultimo_esfuerzo:` datos del último esfuerzo.
+
+El objetivo de la prueba es comprobar si el primer esfuerzo (cuando el músculo no está fatigado) tiene una media significativamente mayor que el último esfuerzo (cuando el músculo puede estar fatigado). La hipótesis alternativa se establece con `alternative='greater'`, lo que significa que estamos probando si el primer esfuerzo es mayor que el último.
+
+# Mostrar el resultado de la prueba
+     print(f"Estadístico t: {result.statistic[0]}")  # Solo tomar el primer valor del estadístico t
+     print(f"Valor p: {result.pvalue[0]}")  # Solo tomar el primer valor de p
+
+- El estadístico t indica la diferencia en las medias de los dos grupos, ponderada por la variabilidad dentro de los grupos. Un valor alto de t sugiere una gran diferencia entre los dos esfuerzos.
+- El valor p es la probabilidad de obtener un resultado igual o más extremo que el observado si la hipótesis nula (que dice que no hay diferencia entre los esfuerzos) fuera cierta.
+- Si el valor p es menor que el nivel de significancia α (0.05), rechazamos la hipótesis nula y concluimos que hay suficiente evidencia para afirmar que el primer esfuerzo es mayor que el último (es decir, que hay fatiga).
+
+# Comparar el valor p con el nivel de significancia alpha (0.05)
+     if result.pvalue[0] < alpha:  # Evaluar solo el primer valor de p
+       print("Rechazamos la hipótesis nula. Hay evidencia suficiente para afirmar que el primer esfuerzo es mayor que el último.")
+    else:
+       print("No podemos rechazar la hipótesis nula. No hay evidencia suficiente para afirmar que el primer esfuerzo es mayor que el último.")
+       
+Si el valor p es menor que α = 0.05, significa que la diferencia entre el primer y el último esfuerzo es estadísticamente significativa. Esto nos llevaría a rechazar la hipótesis nula y concluir que efectivamente el primer esfuerzo es mayor que el último (lo que indicaría fatiga muscular).
+
+Si el valor p es mayor que 0.05, no hay suficiente evidencia para rechazar la hipótesis nula, por lo que no se puede concluir que haya una diferencia significativa entre los dos esfuerzos.
+
+     plt.ioff()
+    plt.show(block=True)
+    
+`plt.ioff()` desactiva el modo interactivo en las gráficas, lo que asegura que las gráficas finales se muestren correctamente.
+
+`plt.show(block=True)` mantiene la ventana de la gráfica abierta hasta que se cierre manualmente.
+
+![image](https://github.com/user-attachments/assets/d80e9d2a-9ac3-4895-a623-300ba19c6dee)
