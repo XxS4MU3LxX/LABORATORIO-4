@@ -413,3 +413,4 @@ Si el valor p es mayor que 0.05, no hay suficiente evidencia para rechazar la hi
 `plt.show(block=True)` mantiene la ventana de la gráfica abierta hasta que se cierre manualmente.
 
 ![image](https://github.com/user-attachments/assets/d80e9d2a-9ac3-4895-a623-300ba19c6dee)
+.
